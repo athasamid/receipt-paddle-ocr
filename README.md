@@ -32,6 +32,3 @@ Test completed in `Centos 7`, `Ubuntu 20.04`, `Ubuntu 22.04`, `Windows 10`, `Win
    ```
 
 5. Swagger Page at `localhost:<port>/docs`
-
-
-By: Alby Teknology <Developed for catatin project>
