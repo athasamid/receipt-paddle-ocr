@@ -1,0 +1,58 @@
+stages:
+  - build
+  - deploy
+  - notification
+
+variables:
+  TAG_IMAGE: $CI_COMMIT_BRANCH-$CI_COMMIT_SHA
+
+build:
+  stage: build
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" "$CI_REGISTRY" --password-stdin
+    - docker pull "$CI_REGISTRY_IMAGE:latest" || true
+  script:
+    - docker build --cache-from="$CI_REGISTRY_IMAGE:latest" --compress -t "$CI_REGISTRY_IMAGE:$TAG_IMAGE" -t "$CI_REGISTRY_IMAGE:latest" .
+    - docker push "$CI_REGISTRY_IMAGE:$TAG_IMAGE"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+  only:
+    - main
+  tags:
+    - biznetgio-lite
+
+deploy:
+  stage: deploy
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - export APP_IMAGE=$CI_REGISTRY_IMAGE
+    - export APP_IMAGE_TAG=$TAG_IMAGE
+    - echo $DOCKER_COMPOSE_FILE
+    - echo "${DOCKER_COMPOSE_FILE}" > docker-compose.yml
+    - docker compose -f docker-compose.yml pull
+    - docker compose -f docker-compose.yml up -d
+  only:
+    - main
+  tags:
+    - biznetgio-lite
+
+success_notification:
+  stage: notification
+  image: alpine:latest
+  script:
+    - wget https://raw.githubusercontent.com/synergicsdigital/gitlab-ci-notif/main/telegram.sh
+    - chmod +x telegram.sh
+    - sh ./telegram.sh success $TELEGRAM_BOT_TOKEN $TELEGRAM_CHAT_ID
+  when: on_success
+  tags:
+    - biznetgio-lite
+
+failure_notification:
+  stage: notification
+  image: alpine:latest
+  script:
+    - wget https://raw.githubusercontent.com/synergicsdigital/gitlab-ci-notif/main/telegram.sh
+    - chmod +x telegram.sh
+    - sh ./telegram.sh failure $TELEGRAM_BOT_TOKEN $TELEGRAM_CHAT_ID
+  when: on_failure
+  tags:
+    - biznetgio-lite
